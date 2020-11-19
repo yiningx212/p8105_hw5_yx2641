@@ -1,135 +1,193 @@
 ---
-title: "p8105 Midterm Project"
+title: "Homework 5"
 author: "Yining Xiang"
-output:
-  pdf_document: default
-  html_document: default
+output: pdf_document
 ---
 
-Import the xlsx file dogweights with data type control on each columns. 
 ```{r setup}
 library(tidyverse)
-library(dplyr)
 library(readr)
-library(stringr)
-library(readxl)
-
-dogweights <- read_excel("dogweights_07sept2020.xlsx", col_types = c("date", "text", "text", "text", "text", "text"))
+library(ggplot2)
+library(data.table)
 ```
 
-
-# Problem 1
-
-Provide a brief introduction to the raw data and the goals of your report.
-Import, tidy, and otherwise clean the data, omitting notes entered as text. Describe the major steps in the process. Note any issues with data entry you identify, and what steps you took to address them.
-Produce a second dataframe, containing only the notes entered as text and the date on which they were written.
-Export both dataframes as CSVs; store in the same directory as the raw data.
-
-1. provide a brief intro to the raw data and the goal of your report:
-The raw date has `r ncol(df_1)` cols and `r nrow(df_1)`rows. It notes the the weight in Lbs and in Oz for the three dogs with a note column. All data are in character.  
-The goal is to clean the data set to and knit a neat graph to show the weight change for the three dogs. 
-```{r}
-x<- ncol(df_1)
-str (dogweights)
-dogweights = janitor::clean_names(dogweights)
-
-# clean up the date and add adjust the position of names for the variables
-colnames(cleaned_dogweights)= c("date", "raisin", "simone", "gagne", "std", "note") 
-
-# split lbs and oz variables for the three cuites
-# the data are characters in these columns, so cannot use seperate(), so I first split the columns into another df and bind them with the original dataset. Then use the select function to pick out what is needed in df_1. 
-raisin_df= str_split_fixed(cleaned_dogweights$raisin, " ", 2)
-cleaned_dogweights = cbind(cleaned_dogweights, raisin_df)
-
-simone_df= str_split_fixed(cleaned_dogweights$simone, " ", 2)
-cleaned_dogweights = cbind(cleaned_dogweights,simone_df)
-
-
-gagne_df= str_split_fixed(cleaned_dogweights$gagne, " ", 2)
-cleaned_dogweights = cbind(cleaned_dogweights,gagne_df)
-
-std_df= str_split_fixed(cleaned_dogweights$std, " ", 2)
-cleaned_dogweights = cbind(cleaned_dogweights, std_df)
-
-# kick out columns from raisin to notes, and rename the variables, then we got df_1
-df_1= select(cleaned_dogweights, col= c(1,2,3,9,10,11,12,13,14,15,16))
-  colnames(df_1)= c("year", "month", "date", "raisin_lbs", "raisin_oz", "simone_lbs", "simone_oz", "gagne_lbs", "gagne_oz", "std_lbs", "std_oz") 
-df_1$raisin_lbs[as.numeric(df_1$raisin_lbs)==0]<-NA
-#df_1$raisin_lbs[as.numeric(df_1$raisin_lbs)>=1000]<- as.numeric(df_1$raisin_lbs)/100
-
-df_2_test= select(cleaned_dogweights, col= c(1,2,3,8))
-df_2= filter(df_2_test, is.na(note)==FALSE)
-write.csv(df_2, "~/Desktop/mailman/fall 20/Data Science/p8105_mtp_yx2641/df_2.csv", row.names = FALSE)
-df_1
-
-#exporting df_1.csv and df_2.csv
-```
-# Problem 2
-
-Briefly describe the resulting tidy dataset containing weights. How many unique dates are included in the dataset? Make a well-formatted table showing the number of observations for each dog, along with their average weight and the standard deviation.
-
-The tidy dataset `r df_1` has 11 columns and 205 rows. The weight of each dog in lbs and oz are displayed side by side in character form. the titles of the df_1 variables are renamed.
-```{r}
-tibble(df_1)
-
-summary(df_1)
-# establish the table
-a<-count(df_1, is.na(raisin_lbs)==FALSE)
-b<-count(df_1, raisin_oz!=NA)
-c<-count(df_1, simone_lbs!=NA)
-d<-count(df_1, is.na(simone_oz)==FALSE)
-e<-count(df_1, is.na(gagne_lbs)==FALSE)
-f<-count(df_1, is.na(gagne_lbs)==FALSE)
-
-#table<- matrix(c(count(raisin_lbs), count(raisin_oz), mean(as.numeric(raisin_lbs)), mean(as.numeric(raisin_oz))), ncol=3, byrow = TRUE)
- #smoke <- matrix(c(51,43,22,92,28,21,68,22,9),ncol=3,byrow=TRUE)
-#colnames(smoke) <- c("High","Low","Middle")
-#> rownames(smoke) <- c("current","former","never")
-#> smoke <- as.table(smoke)
-#> smoke
-
-my_controls <-tableby.control(
-  total = F,
-  numeric.stats = c("meansd", "medianq1q3", "range", "Nmiss2"),
-  cat.stats =  c("countpct", "Nmiss2"),
-  stats.labels = list(
-    meansd = "Mean(SD)",
-    medianq1q3 = "Median (Q1, Q3)",
-    range = "Min - Max",
-    Nmiss2 = "Missing",
-    countpct = "N (%)")
-)
-
-
-tab1 <- tableby( ~ raisin_lbs+raisin_oz+simone_lbs+simone_oz,data= df_1, control=my_controls) 
-summary(tab1, title="dog weight summary")
-
-
-
-tab1
-#my_controls<- tableby.control(
-#  total = F,
-#  test=F,
-#  numeric.stats = c("meansd", "medianq1q3", "range", "Nmiss2"),
-#  cat.stats =  c("countpct", "Nmiss2"),
-#  stats.labels = list(
-#    meansd = "Mean(SD)",
-#    medianq1q3 = "Median (Q1, Q3)",
-#    range = "Min - Max",
-#    Nmiss2 = "Missing",
-#    countpct = "N (%)")
-```
-
-
-# Problem 3
-Create a two-panel plot showing:
-
-In the left panel, the distribution of weights for each dog.
-In the right panel, each dog’s weight over time.
+## Problem 1
 
 ```{r}
-
-ggplot(df_1, aes(x =date, y = raisin_df, color = date)) + geom_point()
+homicide_df <- read_csv("homicide-data.csv")
+homicide_df= 
+  mutate(
+    homicide_df, citystate= str_c(city, state, sep= "-"),
+    resolved= case_when(
+      disposition== "Closed without arrest" ~ "unsolved",
+      disposition== "Open/No arrest"~ "unsolved",
+      disposition== "Closed by arrest"~ "solved"
+    )
+  )
 
 ```
+
+## Problem 2
+
+```{r}
+#function
+import= function(x){
+  x_df= read_csv(x)%>%
+    mutate(group_id= x)
+  
+  df= rbind(df, x_df)
+}
+
+#list of file names and map function
+names= list.files(path = "data")
+df_map= map_df(names, import, .id="order")
+
+
+#tidy the output df
+df_tidy= 
+  separate(df_map, group_id, into= c("group", "id" ), sep= "_")%>%
+  mutate(
+    df_tidy, 
+    group= factor(group, labels= c("control", "experiment")),
+    id= factor(id, labels= c(1:10))
+  )
+  
+df_tidy= df_tidy[, c(10,11,2:9)]
+
+
+
+for (i in 1:10){
+  df_plot_i=
+    pull(df_tidy, col[1:2], col[i+2])%>%
+    mutate(week=i)
+  
+  haha= rbind(haha, df_plot_i)
+}
+  
+
+df_spaghetti= map_df(iteration, sub)
+#plot
+#ggplot(df_tidy, aes(x= , y=group_id, color= group_id))+
+#  geom_point()+
+#  geom_line()
+
+
+```
+
+
+## Problem 3
+
+```{r}
+#generate data set for mu=0
+#function
+sim_mean_p = function(samp_size, mean=0) {
+  sim_data = 
+    tibble(
+      x = rnorm(n = samp_size, mean=mean, sd = 5)
+    )
+  
+  sim_data %>% 
+    summarize(
+      mean = mean(x),
+      sigma = sd(x)
+    )%>%
+    t.test() %>%
+    broom::tidy()
+}
+
+output = vector("list", 5000)
+
+for (i in 1:5000) {
+  output[[i]] = sim_mean_p(30)%>%
+    select(estimate, p.value)
+}
+sim_results = bind_rows(output)
+
+```
+
+```{r}
+mu_list =
+  list(
+    "mu_1" = 1,
+    "mu_2" = 2,
+    "mu_3" = 3,
+    "mu_4" = 4,
+    "mu_5" = 5,
+    "mu_6" = 6
+  )
+
+mu_list_output = vector("list", length = 6)
+
+for (i in 1:6) {
+mu_list_output[[i]] = rerun(5000, sim_mean_p(30, mean = mu_list[[i]])) %>% 
+  bind_rows() %>% 
+  select(estimate, p.value)
+  
+}
+
+mu_value= vector(mode="integer", length=35000)
+identifier= c(0,1,2,3,4,5,6)
+mu_value= rep(identifier,c(5000,5000,5000,5000,5000,5000,5000))
+
+#reorganize the dataframe for the first plot
+graph_data =
+bind_rows(sim_results, mu_list_output) %>%
+  mutate(
+    test_results = case_when(
+      p.value < .05 ~ "reject",
+      p.value >= .05 ~ "fail to reject"
+    )
+ 
+  )
+plot_data= 
+  bind_cols(graph_data, mu_value)
+
+names(plot_data)[4]= "mu_val"
+
+plot_data%>%
+  count(mu_val, test_results)%>%
+  mutate(rej_prop= n/sum(n))
+
+#plot
+
+mean_value= c(0,1,2,3,4,5,6)
+reject_prop= c(0, 0.016, 0.172, 0.1136, 0.3488, 0.530,1991/5000)
+bar_plot_data= data.frame(mean_value, reject_prop)
+
+barplot(bar_plot_data,
+        main="title",
+        xlab= "mean_value", ylab= "reject_prop"
+        )
+
+#plot
+
+plot_data%>%
+  group_by(mu_val)%>%
+  summarize(rej_prop= count(test_results= "reject")/5000)
+
+p_value_plot= ggplot(plot_data)+
+  geom_col(
+    mapping= aes(mu_val~count(test_results= "reject"))
+  )
+
+p_value_plot
+
+```
+I could hardly plot the but from the cleaned data, we could see from the simulation, as $\mu$ grow from 0 to 6 the the probability of rejecting the null hypothesis grows exponentially. 
+
+### the second plot
+
+```{r}
+plot2= ggplot(plot_data, aes(x= mu_val, y=estimate))+
+  geom_point()
+plot2
+
+rejected= filter(plot_data, test_results== "reject", preserve= TRUE)
+plot3= ggplot(rejected, aes(x=mu_val, y=estimate))+
+  geom_point()
+plot3
+```
+
+
+
 
